@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content Blitz AI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f0f13; color: #fff; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+  .deck { flex: 1; position: relative; overflow: hidden; }
+  .slide { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 4rem; opacity: 0; transform: translateX(60px); transition: opacity 0.4s ease, transform 0.4s ease; pointer-events: none; }
+  .slide.active { opacity: 1; transform: translateX(0); pointer-events: all; }
+  .slide.exit { opacity: 0; transform: translateX(-60px); }
+
+  /* Nav */
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); flex-shrink: 0; }
+  .nav button { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 14px; transition: background 0.2s; }
+  .nav button:hover { background: rgba(255,255,255,0.15); }
+  .nav button:disabled { opacity: 0.3; cursor: default; }
+  .slide-counter { font-size: 13px; color: rgba(255,255,255,0.4); letter-spacing: 0.05em; }
+  .dots { display: flex; gap: 6px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2); cursor: pointer; transition: background 0.2s; }
+  .dot.active { background: #a78bfa; }
+
+  /* Common */
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #a78bfa; margin-bottom: 1rem; }
+  h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 700; line-height: 1.1; text-align: center; }
+  h2 { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 600; text-align: center; margin-bottom: 1.5rem; }
+  .sub { font-size: clamp(0.9rem, 1.8vw, 1.1rem); color: rgba(255,255,255,0.55); text-align: center; max-width: 640px; line-height: 1.7; margin-top: 1rem; }
+  .accent { color: #a78bfa; }
+  .accent2 { color: #34d399; }
+
+  /* Slide 1 */
+  .hero-badge { background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.3); border-radius: 999px; padding: 0.4rem 1.2rem; font-size: 13px; color: #a78bfa; margin-bottom: 2rem; }
+  .hero-stat-row { display: flex; gap: 2rem; margin-top: 2.5rem; }
+  .hero-stat { text-align: center; }
+  .hero-stat .num { font-size: 2rem; font-weight: 700; color: #a78bfa; }
+  .hero-stat .lbl { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+
+  /* Slide 2 - Problem */
+  .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: 700px; width: 100%; margin-top: 1.5rem; }
+  .prob-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.25rem; }
+  .prob-card .icon { font-size: 20px; margin-bottom: 0.5rem; }
+  .prob-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 0.4rem; }
+  .prob-card p { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.5; }
+  .prob-arrow { display: flex; align-items: center; justify-content: center; margin-top: 1.5rem; gap: 1rem; font-size: 13px; }
+  .prob-arrow .before { background: rgba(226,73,73,0.12); border: 1px solid rgba(226,73,73,0.25); color: #f87171; padding: 0.4rem 0.9rem; border-radius: 6px; }
+  .prob-arrow .after { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.25); color: #34d399; padding: 0.4rem 0.9rem; border-radius: 6px; }
+
+  /* Slide 3 - Architecture */
+  .arch-pipeline { display: flex; align-items: center; gap: 0; max-width: 860px; width: 100%; margin-top: 1.5rem; overflow-x: auto; }
+  .arch-node { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .arch-node .box { width: 110px; padding: 0.75rem 0.5rem; border-radius: 10px; text-align: center; }
+  .arch-node .num { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 4px; opacity: 0.7; }
+  .arch-node .name { font-size: 13px; font-weight: 600; }
+  .arch-node .desc { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+  .arch-arrow { color: rgba(255,255,255,0.2); font-size: 18px; padding: 0 4px; flex-shrink: 0; }
+  .n-purple .box { background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.3); }
+  .n-purple .name { color: #c4b5fd; }
+  .n-teal .box { background: rgba(52,211,153,0.10); border: 1px solid rgba(52,211,153,0.25); }
+  .n-teal .name { color: #6ee7b7; }
+  .n-amber .box { background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.25); }
+  .n-amber .name { color: #fcd34d; }
+  .n-blue .box { background: rgba(96,165,250,0.10); border: 1px solid rgba(96,165,250,0.25); }
+  .n-blue .name { color: #93c5fd; }
+  .n-red .box { background: rgba(248,113,113,0.10); border: 1px solid rgba(248,113,113,0.25); }
+  .n-red .name { color: #fca5a5; }
+  .n-green .box { background: rgba(74,222,128,0.10); border: 1px solid rgba(74,222,128,0.25); }
+  .n-green .name { color: #86efac; }
+
+  /* Slide 4 - Tech Stack */
+  .tech-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; max-width: 640px; width: 100%; margin-top: 1.5rem; }
+  .tech-row { display: flex; align-items: center; gap: 1rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.9rem 1.1rem; }
+  .tech-layer { font-size: 11px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; min-width: 80px; }
+  .tech-val { font-size: 14px; font-weight: 600; color: #a78bfa; }
+  .tech-badge { font-size: 11px; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.25); color: #34d399; border-radius: 5px; padding: 2px 7px; margin-left: auto; }
+
+  /* Slide 5 - Key Decisions */
+  .decisions { display: flex; flex-direction: column; gap: 0.8rem; max-width: 680px; width: 100%; margin-top: 1.5rem; }
+  .decision { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 1rem 1.25rem; display: flex; gap: 1rem; align-items: flex-start; }
+  .decision .dnum { font-size: 12px; font-weight: 700; color: #a78bfa; background: rgba(167,139,250,0.12); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .decision h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .decision p { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.5; }
+
+  /* Slide 6 - Concepts */
+  .concepts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; max-width: 700px; width: 100%; margin-top: 1.5rem; }
+  .concept { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.9rem 1rem; display: flex; align-items: center; gap: 0.75rem; }
+  .concept .ck { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .concept h3 { font-size: 13px; font-weight: 600; margin-bottom: 1px; }
+  .concept p { font-size: 11px; color: rgba(255,255,255,0.45); }
+
+  /* Slide 7 - Closing */
+  .roadmap { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1.5rem; max-width: 580px; width: 100%; }
+  .roadmap-item { display: flex; align-items: center; gap: 1rem; font-size: 14px; color: rgba(255,255,255,0.7); }
+  .roadmap-item::before { content: '→'; color: #a78bfa; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- Slide 1: Title -->
+  <div class="slide active" id="s0">
+    <div class="hero-badge">Agentic AI — Capstone Project</div>
+    <h1>Content Blitz <span class="accent">AI</span></h1>
+    <p class="sub">A six-agent pipeline that takes a brand from blank slate to a validated, ready-to-post social media package — in under two minutes.</p>
+    <div class="hero-stat-row">
+      <div class="hero-stat"><div class="num">6</div><div class="lbl">Specialized agents</div></div>
+      <div class="hero-stat"><div class="num accent2" style="color:#34d399">&lt;2</div><div class="lbl">Minutes end-to-end</div></div>
+      <div class="hero-stat"><div class="num">$0.12</div><div class="lbl">Cost per run</div></div>
+    </div>
+  </div>
+
+  <!-- Slide 2: Problem -->
+  <div class="slide" id="s1">
+    <div class="tag">The Problem</div>
+    <h2>Creating social content is <span class="accent">slow and fragmented</span></h2>
+    <div class="problem-grid">
+      <div class="prob-card"><div class="icon">✍️</div><h3>Write captions</h3><p>Multiple tones, multiple platforms, multiple variations.</p></div>
+      <div class="prob-card"><div class="icon">🖼️</div><h3>Source images</h3><p>Find or generate something on-brand and platform-safe.</p></div>
+      <div class="prob-card"><div class="icon">📐</div><h3>Check guidelines</h3><p>Character limits, aspect ratios, hashtag caps — per platform.</p></div>
+      <div class="prob-card"><div class="icon">🔁</div><h3>Iterate on feedback</h3><p>Revise, regenerate, re-check — across multiple tools.</p></div>
+    </div>
+    <div class="prob-arrow">
+      <span class="before">Hours across multiple tools</span>
+      <span style="color:rgba(255,255,255,0.3)">→</span>
+      <span class="after">One guided conversation</span>
+    </div>
+  </div>
+
+  <!-- Slide 3: Architecture -->
+  <div class="slide" id="s2">
+    <div class="tag">System Architecture</div>
+    <h2>Six agents. One orchestrator. Clean interfaces.</h2>
+    <div class="arch-pipeline">
+      <div class="arch-node n-purple">
+        <div class="box"><div class="num">01</div><div class="name">Chat</div><div class="desc">Collects brief</div></div>
+      </div>
+      <div class="arch-arrow">›</div>
+      <div class="arch-node n-teal">
+        <div class="box"><div class="num">02</div><div class="name">Planner</div><div class="desc">Strategy + format</div></div>
+      </div>
+      <div class="arch-arrow">›</div>
+      <div class="arch-node n-amber">
+        <div class="box"><div class="num">03</div><div class="name">Caption</div><div class="desc">3 variations</div></div>
+      </div>
+      <div class="arch-arrow">›</div>
+      <div class="arch-node n-blue">
+        <div class="box"><div class="num">04</div><div class="name">Image</div><div class="desc">Analyse or generate</div></div>
+      </div>
+      <div class="arch-arrow">›</div>
+      <div class="arch-node n-red">
+        <div class="box"><div class="num">05</div><div class="name">Validation</div><div class="desc">Platform rules</div></div>
+      </div>
+      <div class="arch-arrow">›</div>
+      <div class="arch-node n-green">
+        <div class="box"><div class="num">06</div><div class="name">Refinement</div><div class="desc">Feedback loop</div></div>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:1.5rem">FastAPI backend · Stateful orchestrator · React frontend · Session-scoped state machine</p>
+  </div>
+
+  <!-- Slide 4: Tech Stack -->
+  <div class="slide" id="s3">
+    <div class="tag">Tech Stack</div>
+    <h2>Purpose-built. No black-box frameworks.</h2>
+    <div class="tech-grid">
+      <div class="tech-row"><span class="tech-layer">LLM</span><span class="tech-val">GPT-4o</span></div>
+      <div class="tech-row"><span class="tech-layer">Image gen</span><span class="tech-val">DALL-E 3</span></div>
+      <div class="tech-row"><span class="tech-layer">Backend</span><span class="tech-val">Python + FastAPI</span></div>
+      <div class="tech-row"><span class="tech-layer">Frontend</span><span class="tech-val">React</span></div>
+      <div class="tech-row"><span class="tech-layer">Orchestration</span><span class="tech-val">Custom Python</span><span class="tech-badge">hand-written</span></div>
+      <div class="tech-row"><span class="tech-layer">Validation</span><span class="tech-val">Pillow (PIL)</span></div>
+    </div>
+    <p class="sub" style="margin-top:1.5rem">No LangChain. No AutoGen. Full control over every agent decision point.</p>
+  </div>
+
+  <!-- Slide 5: Key Decisions -->
+  <div class="slide" id="s4">
+    <div class="tag">Engineering Decisions</div>
+    <h2>Four deliberate architectural choices</h2>
+    <div class="decisions">
+      <div class="decision"><div class="dnum">1</div><div><h3>One agent = one responsibility</h3><p>Each agent is independently testable and reusable. Swap one without touching the rest.</p></div></div>
+      <div class="decision"><div class="dnum">2</div><div><h3>Validation without LLMs</h3><p>Platform rules are deterministic. A character count is either over the limit or it isn't — no model needed, no hallucination risk.</p></div></div>
+      <div class="decision"><div class="dnum">3</div><div><h3>Three structured output strategies</h3><p>JSON mode for the Planner · Custom delimiters for captions · XML tags for the Chat Agent — matched to each agent's output shape.</p></div></div>
+      <div class="decision"><div class="dnum">4</div><div><h3>Two-step image generation</h3><p>GPT-4o writes a context-rich prompt first, then DALL-E 3 renders it. Better images than a raw user description every time.</p></div></div>
+    </div>
+  </div>
+
+  <!-- Slide 6: Agentic Concepts -->
+  <div class="slide" id="s5">
+    <div class="tag">Course Concepts Demonstrated</div>
+    <h2>Agentic AI patterns — in production</h2>
+    <div class="concepts">
+      <div class="concept"><div class="ck" style="background:#a78bfa"></div><div><h3>Multi-agent orchestration</h3><p>6 agents coordinated by a central stateful orchestrator</p></div></div>
+      <div class="concept"><div class="ck" style="background:#34d399"></div><div><h3>Agent specialization</h3><p>Single focused role and clear input/output contract per agent</p></div></div>
+      <div class="concept"><div class="ck" style="background:#60a5fa"></div><div><h3>Tool use</h3><p>DALL-E 3 and GPT-4o Vision as agent-callable tools</p></div></div>
+      <div class="concept"><div class="ck" style="background:#fbbf24"></div><div><h3>Structured outputs</h3><p>JSON mode, XML parsing, and delimiter parsing</p></div></div>
+      <div class="concept"><div class="ck" style="background:#f87171"></div><div><h3>Human-in-the-loop</h3><p>Refinement cycle with revision history and quick-prompt chips</p></div></div>
+      <div class="concept"><div class="ck" style="background:#86efac"></div><div><h3>State management</h3><p>Session-scoped orchestrator with explicit phase transitions</p></div></div>
+      <div class="concept"><div class="ck" style="background:#c084fc"></div><div><h3>Validation layer</h3><p>Deterministic rule-based guardrails after every generation</p></div></div>
+      <div class="concept"><div class="ck" style="background:#6ee7b7"></div><div><h3>Modular design</h3><p>Agents are independently deployable and reusable</p></div></div>
+    </div>
+  </div>
+
+  <!-- Slide 7: What's Next + Close -->
+  <div class="slide" id="s6">
+    <div class="tag">What's Next</div>
+    <h2>From POC to <span class="accent">production</span></h2>
+    <div class="roadmap">
+      <div class="roadmap-item">Message queue between agents (RabbitMQ / Redis) — independent microservices</div>
+      <div class="roadmap-item">Persistent sessions in a database — survive server restarts</div>
+      <div class="roadmap-item">CDN for generated images — DALL-E URLs expire after 1 hour</div>
+      <div class="roadmap-item">TikTok scripts, Pinterest boards — expanded platform support</div>
+      <div class="roadmap-item">A/B feedback loop — winning captions feed back into the Planner</div>
+    </div>
+    <p class="sub" style="margin-top:2rem">Thank you — happy to demo any agent or dive into the architecture.</p>
+  </div>
+
+</div>
+
+<!-- Nav -->
+<div class="nav">
+  <button id="prev" onclick="go(-1)" disabled>← Prev</button>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+    <div class="dots" id="dots"></div>
+    <span class="slide-counter" id="counter">1 / 7</span>
+  </div>
+  <button id="next" onclick="go(1)">Next →</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let cur = 0;
+  const dotsEl = document.getElementById('dots');
+
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n) {
+    slides[cur].classList.remove('active');
+    slides[cur].classList.add('exit');
+    setTimeout(() => slides[cur === n ? n : cur].classList.remove('exit'), 400);
+    cur = n;
+    slides[cur].classList.add('active');
+    document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === cur));
+    document.getElementById('counter').textContent = (cur + 1) + ' / ' + total;
+    document.getElementById('prev').disabled = cur === 0;
+    document.getElementById('next').disabled = cur === total - 1;
+  }
+
+  function go(d) { if (cur + d >= 0 && cur + d < total) goTo(cur + d); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') go(-1);
+  });
+</script>
+</body>
+</html>
